@@ -6,9 +6,14 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 
 from django.utils import simplejson
 
-import os
+from datetime import datetime
+import os, Cookie
+
+class TodoList(db.Model):
+    timestamp = db.DateTimeProperty(auto_now_add=True)
 
 class Todos(db.Model):
+    todolist = db.ReferenceProperty(TodoList)
     order = db.IntegerProperty()
     content = db.StringProperty()
     done = db.BooleanProperty()
@@ -24,21 +29,35 @@ class Todos(db.Model):
 
 class MainHandler(webapp.RequestHandler):
     def get(self):
+	if self.request.cookies.get('todos', None) == None:
+	    todolist = TodoList()
+	    todolist.put()
+	    cookie = Cookie.SimpleCookie()
+	    cookie['todos'] = todolist.key().__str__()
+	    cookie['todos']['expires'] = datetime(2014, 1, 1).strftime('%a, %d %b %Y %H:%M:%S')
+	    cookie['todos']['path'] = '/'
+	    self.response.headers.add_header('Set-Cookie', cookie['todos'].OutputString())
 	path = os.path.join(os.path.dirname(__file__), 'index.html')
-	self.response.out.write(template.render(path, None))	
+	self.response.out.write(template.render(path, None))
 
 class RESTfulHandler(webapp.RequestHandler):
-    def get(self):
+    def get(self, id):
+	key = self.request.cookies['todos']
+	todolist = db.get(key)
 	todos = []
 	query = Todos.all()
+	query.filter("todolist =", todolist.key())
 	for todo in query:
 	    todos.append(todo.toDict())
 	todos = simplejson.dumps(todos)
 	self.response.out.write(todos)
 
-    def post(self):
+    def post(self, id):
+	key = self.request.cookies['todos']
+	todolist = db.get(key)
 	todo = simplejson.loads(self.request.body)
-	todo = Todos(order   = todo['order'],
+	todo = Todos(todolist = todolist.key(),
+		     order   = todo['order'],
 		     content = todo['content'],
 		     done    = todo['done'])
 	todo.put()
@@ -46,25 +65,33 @@ class RESTfulHandler(webapp.RequestHandler):
 	self.response.out.write(todo)
 
     def put(self, id):
-	tmp = simplejson.loads(self.request.body)
+	key = self.request.cookies['todos']
+	todolist = db.get(key)
 	todo = Todos.get_by_id(int(id))
-	todo.content = tmp['content']
-	todo.done    = tmp['done']
-	todo.put()
-	todo = simplejson.dumps(todo.toDict())
-	self.response.out.write(todo)
+	if todo.todolist.key() == todolist.key():
+	    tmp = simplejson.loads(self.request.body)
+	    todo.content = tmp['content']
+	    todo.done    = tmp['done']
+	    todo.put()
+	    todo = simplejson.dumps(todo.toDict())
+	    self.response.out.write(todo)
+	else:
+	    self.error(403)
 
     def delete(self, id):
+	key = self.request.cookies['todos']
+        todolist = db.get(key)
 	todo = Todos.get_by_id(int(id))
-	tmp = todo.toDict()
-	todo.delete()
-	todo = simplejson.dumps(tmp)
-	#self.response.write.out(todo)
+	if todo.todolist.key() == todolist.key():
+	    tmp = todo.toDict()
+	    todo.delete()
+	else:
+	    self.error(403)
 	
 application = webapp.WSGIApplication(
 				     [('/', MainHandler),
-				      ('/todos', RESTfulHandler),
-				      ('/todos/([0-9]*)', RESTfulHandler)],
+				      #('/todos', RESTfulHandler),
+				      ('/todos\/?([0-9]*)', RESTfulHandler)],
 				      debug=True)
 
 def main():

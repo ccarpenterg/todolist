@@ -1,7 +1,10 @@
 application: todolist-app
-version: 1
+version: 2
 runtime: python
 api_version: 1
+
+builtins:
+- datastore_admin: on
 
 handlers:
 
