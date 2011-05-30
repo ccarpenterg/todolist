@@ -90,7 +90,6 @@ class RESTfulHandler(webapp.RequestHandler):
 	
 application = webapp.WSGIApplication(
 				     [('/', MainHandler),
-				      #('/todos', RESTfulHandler),
 				      ('/todos\/?([0-9]*)', RESTfulHandler)],
 				      debug=True)
 
