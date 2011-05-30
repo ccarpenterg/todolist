@@ -48,7 +48,6 @@ $(function(){
     // Save all of the todo items under the `"todos"` namespace.
     //localStorage: new Store("todos"),
 
-    //url: 'http://localhost:8080/todos',
     url: '/todos',
 
     // Filter down the list of all todo items that are finished.
