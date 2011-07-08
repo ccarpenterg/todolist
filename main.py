@@ -1,4 +1,3 @@
-
 from google.appengine.ext.webapp import template
 from google.appengine.ext import webapp
 from google.appengine.ext import db
@@ -53,6 +52,13 @@ class RESTfulHandler(webapp.RequestHandler):
 	self.response.out.write(todos)
 
     def post(self, id):
+        # If we using Backbone.emulateHTTP
+        if 'X-HTTP-Method-Override' in self.request.headers:
+            if self.request.headers['X-HTTP-Method-Override'] == 'DELETE':
+                return self.delete(id)
+            elif self.request.headers['X-HTTP-Method-Override'] == 'PUT':
+                return self.put(id)
+
 	key = self.request.cookies['todos']
 	todolist = db.get(key)
 	todo = simplejson.loads(self.request.body)
